@@ -6,13 +6,13 @@ import {
     List,
     message,
     Rate,
-    Spin,
     Typography,
     Select,
     Watermark,
+    Divider,
   } from "antd";
   import { useEffect, useState } from "react";
-  import { addToCart, getAllProducts, getProductsByCategory } from "../../API";
+  import { addToCart, getAllProducts, getProductsByCategory } from "../API";
   import { useParams } from "react-router-dom";
   
   function Products() {
@@ -20,6 +20,7 @@ import {
     const param = useParams();
     const [items, setItems] = useState([]);
     const [sortOrder, setSortOrder] = useState("az");
+
     useEffect(() => {
       setLoading(true);
       (param?.categoryId
@@ -61,7 +62,7 @@ import {
     return (
       <div className="productsContainer">
         <div>
-          <Typography.Text>View Items Sorted By: </Typography.Text>
+          <Typography.Text>Sorted By: </Typography.Text>
           <Select
             onChange={(value) => {
               setSortOrder(value);
@@ -89,7 +90,16 @@ import {
         </div>
         <List
           loading={loading}
-          grid={{ column: 3 }}
+          grid={{
+            gutter: 16,
+            xs: 1,
+            sm: 2,
+            md: 3,
+            lg: 3,
+            xl: 3,
+            xxl: 6,
+          }}
+          itemLayout=""
           renderItem={(product, index) => {
             return (
               <Badge.Ribbon
@@ -105,8 +115,7 @@ import {
                     <Image className="itemCardImage" src={product.thumbnail} srcSet={<Watermark content={'Codemarket'} style={{width: '100%'}}></Watermark>}/>
                   }
                   actions={[
-                    <Rate allowHalf disabled value={product.rating} />,
-                    <AddToCartButton item={product} />,
+                    <AddToCartButton item={product} />
                   ]}
                 >
                   <Card.Meta
@@ -123,11 +132,13 @@ import {
                       </Typography.Paragraph>
                     }
                     description={
-                      <Typography.Paragraph
+                      <><Typography.Paragraph
                         ellipsis={{ rows: 2, expandable: true, symbol: "more" }}
                       >
                         {product.description}
                       </Typography.Paragraph>
+                      <Divider orientation='center'><Rate allowHalf disabled value={product.rating} /></Divider>
+                      </>
                     }
                   ></Card.Meta>
                 </Card>

@@ -1,7 +1,7 @@
 import { BrowserRouter } from 'react-router-dom';
 import './App.css';
 import AppFooter from './components/Footer';
-import AppHeader from './components/Header/App';
+import AppHeader from './components/Header';
 import PageContent from './components/PageContent';
 
 function App() {

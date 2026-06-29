@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import ProductCard from '../components/ProductCard';
+import Image from '../assets/p1.png';
 
 export default function Home() {
   const navigate = useNavigate();

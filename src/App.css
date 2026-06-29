@@ -103,7 +103,7 @@ body {
   content: '';
   position: absolute;
   inset: 0;
-  background: url('./assets/p1.png') center center / cover;
+  background: url('https://images.pexels.com/photos/19641033/pexels-photo-19641033.jpeg?_gl=1*jpx1in*_ga*MjAwOTY5NTExOS4xNzgyNzE0Mjc3*_ga_8JE65Q40S6*czE3ODI3MTQyNzYkbzEkZzEkdDE3ODI3MTQzMTkkajE3JGwwJGgw') center center / cover;
   opacity: 0.18;
 }
 

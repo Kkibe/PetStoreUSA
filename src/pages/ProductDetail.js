@@ -87,9 +87,7 @@ export default function ProductDetail() {
         </Col>
         <Col xs={24} md={14}>
           {product.featured && <Tag color="#D4A373" style={{ marginBottom: 12 }}>Featured</Tag>}
-          }
           {product.categories && <Tag style={{ marginBottom: 12 }}>{product.categories.name}</Tag>}
-          }
           <Typography.Title level={2} style={{ fontFamily: "'Playfair Display', serif", marginBottom: 8 }}>
             {product.name}
           </Typography.Title>

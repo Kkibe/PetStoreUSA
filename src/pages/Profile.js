@@ -120,8 +120,14 @@ export default function Profile() {
                         </Typography.Text>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <Tag color={o.status === 'pending' ? 'orange' : o.status === 'delivered' ? 'green' : 'blue'}>
-                          {o.status}
+                        <Tag color={
+                          o.status === 'paid' ? 'green' :
+                          o.status === 'delivered' ? 'green' :
+                          o.status === 'awaiting_payment' ? 'orange' :
+                          o.status === 'payment_failed' ? 'red' :
+                          o.status === 'pending' ? 'orange' : 'blue'
+                        }>
+                          {o.status.replace(/_/g, ' ')}
                         </Tag>
                         <br />
                         <Typography.Text strong style={{ color: '#1B4332' }}>${Number(o.total).toFixed(2)}</Typography.Text>

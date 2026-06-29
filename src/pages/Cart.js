@@ -1,10 +1,11 @@
-import { DeleteOutlined, ShoppingOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { DeleteOutlined, ShoppingOutlined, ArrowLeftOutlined, CreditCardOutlined } from '@ant-design/icons';
 import { Button, Col, Empty, InputNumber, Row, Spin, Typography, message } from 'antd';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
+import { usePayment, generateTxRef } from '../lib/payment';
 
 export default function Cart() {
   const navigate = useNavigate();
@@ -13,6 +14,7 @@ export default function Cart() {
   const [addresses, setAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [placing, setPlacing] = useState(false);
+  const { pay } = usePayment();
 
   useEffect(() => {
     if (!session?.user) return;
@@ -30,10 +32,12 @@ export default function Cart() {
     setPlacing(true);
     try {
       const addr = addresses.find((a) => a.id === selectedAddress);
+      const txRef = generateTxRef();
       const { data: order, error: orderErr } = await supabase.from('orders').insert({
         total: cartTotal,
-        status: 'pending',
+        status: 'awaiting_payment',
         address_snapshot: addr,
+        payment: { tx_ref: txRef, status: 'initiated' },
       }).select().maybeSingle();
       if (orderErr) throw orderErr;
       const lineItems = cartItems.map((c) => ({
@@ -46,17 +50,44 @@ export default function Cart() {
       }));
       const { error: itemsErr } = await supabase.from('order_items').insert(lineItems);
       if (itemsErr) throw itemsErr;
-      await supabase.from('notifications').insert({
-        title: 'Order Placed Successfully',
-        body: `Your order of ${cartItems.length} item(s) totaling $${cartTotal.toFixed(2)} has been received. We will contact you shortly.`,
-        type: 'order',
+
+      pay({
+        amount: cartTotal,
+        customer: {
+          email: session.user.email,
+          name: addr.full_name,
+          phone_number: addr.postal_code,
+        },
+        txRef,
+        onVerified: async (result) => {
+          const paid = result.status === 'verified';
+          await supabase.from('orders').update({
+            status: paid ? 'paid' : 'payment_failed',
+            payment: result,
+          }).eq('id', order.id);
+          await supabase.from('notifications').insert({
+            title: paid ? 'Payment Successful' : 'Payment Issue',
+            body: paid
+              ? `Your order #${order.id.slice(0, 8)} of ${cartTotal.toFixed(2)} was paid and verified (ref: ${result.tx_ref}).`
+              : `Payment for order #${order.id.slice(0, 8)} could not be verified. Please contact support.`,
+            type: paid ? 'order' : 'alert',
+          });
+          if (paid) {
+            await clearCart();
+            message.success('Payment verified! Order placed successfully.');
+            navigate('/profile?tab=orders');
+          } else {
+            message.error('Payment could not be verified. Please try again or contact support.');
+          }
+          setPlacing(false);
+        },
+        onClose: () => {
+          setPlacing(false);
+          message.info('Payment cancelled.');
+        },
       });
-      await clearCart();
-      message.success('Order placed successfully!');
-      navigate('/profile?tab=orders');
     } catch (err) {
       message.error(err.message || 'Checkout failed.');
-    } finally {
       setPlacing(false);
     }
   };
@@ -132,11 +163,11 @@ export default function Cart() {
                 No shipping address found. Add one in your profile.
               </Typography.Paragraph>
             )}
-            <Button type="primary" size="large" block loading={placing} onClick={handleCheckout} disabled={addresses.length === 0}>
-              Place Order
+            <Button type="primary" size="large" block loading={placing} onClick={handleCheckout} disabled={addresses.length === 0} icon={<CreditCardOutlined />}>
+              Pay with Flutterwave
             </Button>
             <Typography.Paragraph type="secondary" style={{ fontSize: 12, textAlign: 'center', marginTop: 12 }}>
-              Cash on Delivery available
+              Secure payment via Flutterwave · Card, Bank Transfer, USSD
             </Typography.Paragraph>
           </div>
         </Col>

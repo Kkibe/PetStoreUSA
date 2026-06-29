@@ -1,6 +1,6 @@
 import {
   LogoutOutlined, OrderedListOutlined, UserOutlined, ShoppingOutlined,
-  BellOutlined, HeartOutlined, HomeOutlined, ShopOutlined, MenuOutlined,
+  BellOutlined, HeartOutlined, HomeOutlined, ShopOutlined, MenuOutlined, DashboardOutlined,
 } from '@ant-design/icons';
 import { Avatar, Badge, Button, Drawer, Input, Menu, message, Typography } from 'antd';
 import { useEffect, useState } from 'react';
@@ -61,6 +61,7 @@ export default function Header() {
         { label: 'My Profile', key: 'profile', icon: <UserOutlined /> },
         { label: 'My Orders', key: 'profile?tab=orders', icon: <OrderedListOutlined /> },
         { label: 'Notifications', key: 'profile?tab=notifications', icon: <BellOutlined /> },
+        ...(profile?.is_admin ? [{ label: 'Admin Panel', key: 'admin', icon: <DashboardOutlined /> }] : []),
         { type: 'divider' },
         { label: 'Sign Out', key: 'signout', icon: <LogoutOutlined />, danger: true },
       ]}

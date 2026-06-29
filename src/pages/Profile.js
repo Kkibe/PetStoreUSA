@@ -1,12 +1,16 @@
-import { UserOutlined, ShoppingOutlined, BellOutlined, CreditCardOutlined, SettingOutlined, EnvironmentOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
-import { Avatar, Button, Card, Empty, Form, Input, List, Menu, Modal, Tag, Typography, message } from 'antd';
+import { UserOutlined, ShoppingOutlined, BellOutlined, CreditCardOutlined, SettingOutlined, EnvironmentOutlined, PlusOutlined, DeleteOutlined, HeartOutlined } from '@ant-design/icons';
+import { Avatar, Button, Card, Col, Empty, Form, Input, List, Menu, Modal, Row, Tag, Typography, message } from 'antd';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useFavorites } from '../context/FavoritesContext';
 import { supabase } from '../lib/supabaseClient';
+import { usePayment, generateTxRef } from '../lib/payment';
+import ProductCard from '../components/ProductCard';
 
 const TABS = [
   { key: 'orders', label: 'My Orders', icon: <ShoppingOutlined /> },
+  { key: 'saved', label: 'Saved Pets', icon: <HeartOutlined /> },
   { key: 'notifications', label: 'Notifications', icon: <BellOutlined /> },
   { key: 'billing', label: 'Billing & Addresses', icon: <CreditCardOutlined /> },
   { key: 'settings', label: 'Settings', icon: <SettingOutlined /> },
@@ -16,6 +20,7 @@ export default function Profile() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { session, profile, updateProfile, signOut } = useAuth();
+  const { favorites, toggleFavorite } = useFavorites();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'orders');
   const [orders, setOrders] = useState([]);
   const [notifications, setNotifications] = useState([]);
@@ -23,6 +28,12 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [addrModalOpen, setAddrModalOpen] = useState(false);
   const [addrForm] = Form.useForm();
+
+  const refreshOrders = async () => {
+    if (!session?.user) return;
+    const { data } = await supabase.from('orders').select('*, order_items(*)').eq('user_id', session.user.id).order('created_at', { ascending: false });
+    setOrders(data || []);
+  };
 
   useEffect(() => {
     if (!session?.user) { navigate('/'); return; }
@@ -110,41 +121,30 @@ export default function Profile() {
                 <Empty description="No orders yet" />
               ) : (
                 orders.map((o) => (
-                  <Card key={o.id} size="small" style={{ marginBottom: 16, borderRadius: 10 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-                      <div>
-                        <Typography.Text strong>Order #{o.id.slice(0, 8)}</Typography.Text>
-                        <br />
-                        <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-                          {new Date(o.created_at).toLocaleDateString()}
-                        </Typography.Text>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <Tag color={
-                          o.status === 'paid' ? 'green' :
-                          o.status === 'delivered' ? 'green' :
-                          o.status === 'awaiting_payment' ? 'orange' :
-                          o.status === 'payment_failed' ? 'red' :
-                          o.status === 'pending' ? 'orange' : 'blue'
-                        }>
-                          {o.status.replace(/_/g, ' ')}
-                        </Tag>
-                        <br />
-                        <Typography.Text strong style={{ color: '#1B4332' }}>${Number(o.total).toFixed(2)}</Typography.Text>
-                      </div>
-                    </div>
-                    <List
-                      size="small"
-                      dataSource={o.order_items || []}
-                      renderItem={(item) => (
-                        <List.Item>
-                          <Typography.Text>{item.product_name} × {item.quantity}</Typography.Text>
-                          <Typography.Text>${Number(item.line_total).toFixed(2)}</Typography.Text>
-                        </List.Item>
-                      )}
-                    />
-                  </Card>
+                  <OrderCard key={o.id} order={o} onUpdate={refreshOrders} />
                 ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'saved' && (
+          <div>
+            <Typography.Title level={4}>Saved Pets</Typography.Title>
+            <Typography.Text type="secondary">Your bookmarked pets and products.</Typography.Text>
+            <div style={{ marginTop: 24 }}>
+              {favorites.length === 0 ? (
+                <Empty description="No saved pets yet" />
+              ) : (
+                <Row gutter={[16, 16]}>
+                  {favorites.map((f) => (
+                    f.product && (
+                      <Col key={f.id} xs={24} sm={12} md={8} lg={6}>
+                        <ProductCard product={f.product} />
+                      </Col>
+                    )
+                  ))}
+                </Row>
               )}
             </div>
           </div>
@@ -287,5 +287,185 @@ function SettingsTab({ profile, updateProfile }) {
         <Button type="primary" htmlType="submit" loading={saving} size="large">Save Changes</Button>
       </Form>
     </div>
+  );
+}
+
+const PROGRESS_STEPS = [
+  { key: 'awaiting_payment', label: 'Awaiting Payment' },
+  { key: 'partially_paid', label: 'Partially Paid' },
+  { key: 'processing', label: 'Processing' },
+  { key: 'shipped', label: 'Shipped' },
+  { key: 'delivered', label: 'Delivered' },
+];
+
+function OrderCard({ order, onUpdate }) {
+  const [expanded, setExpanded] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const { pay } = usePayment();
+
+  const progress = order.progress || 'awaiting_payment';
+  const isCancelled = progress === 'cancelled';
+  const canCancel = ['awaiting_payment', 'partially_paid', 'processing', 'shipped'].includes(progress);
+  const needsPayment = ['awaiting_payment', 'partially_paid'].includes(progress);
+  const paymentType = order.payment_type;
+  const amountPaid = order.payment?.amount_due || 0;
+  const balance = paymentType === 'deposit_50' ? Number(order.total) - Number(amountPaid) : 0;
+
+  const handleCompletePayment = () => {
+    setActionLoading(true);
+    const due = paymentType === 'deposit_50' ? balance : Number(order.total);
+    pay({
+      amount: due,
+      customer: {
+        email: order.address_snapshot?.full_name || '',
+        name: order.address_snapshot?.full_name || '',
+        phone_number: order.address_snapshot?.postal_code || '',
+      },
+      txRef: generateTxRef(),
+      onVerified: async (result) => {
+        const paid = result.status === 'verified';
+        if (paid) {
+          await supabase.from('orders').update({
+            status: 'paid',
+            progress: 'processing',
+            payment: { ...result, payment_type: 'full', amount_due: due, order_total: order.total },
+            payment_type: 'full',
+          }).eq('id', order.id);
+          await supabase.from('notifications').insert({
+            title: 'Payment Completed',
+            body: `Your balance payment of ${due.toFixed(2)} for order #${order.id.slice(0, 8)} was verified.`,
+            type: 'order',
+          });
+          message.success('Balance payment verified!');
+        } else {
+          message.error('Payment could not be verified.');
+        }
+        setActionLoading(false);
+        onUpdate();
+      },
+      onClose: () => { setActionLoading(false); },
+    });
+  };
+
+  const handleCancel = async () => {
+    Modal.confirm({
+      title: 'Cancel this order?',
+      content: 'This action cannot be undone.',
+      okText: 'Yes, cancel',
+      okType: 'danger',
+      cancelText: 'No',
+      onOk: async () => {
+        setActionLoading(true);
+        await supabase.from('orders').update({
+          progress: 'cancelled',
+          status: 'cancelled',
+          cancelled_at: new Date().toISOString(),
+        }).eq('id', order.id);
+        await supabase.from('notifications').insert({
+          title: 'Order Cancelled',
+          body: `Your order #${order.id.slice(0, 8)} has been cancelled.`,
+          type: 'alert',
+        });
+        message.success('Order cancelled.');
+        setActionLoading(false);
+        onUpdate();
+      },
+    });
+  };
+
+  const currentStepIndex = PROGRESS_STEPS.findIndex((s) => s.key === progress);
+
+  return (
+    <Card size="small" style={{ marginBottom: 16, borderRadius: 10, cursor: 'pointer' }} onClick={() => setExpanded((e) => !e)}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+        <div>
+          <Typography.Text strong>Order #{order.id.slice(0, 8)}</Typography.Text>
+          <br />
+          <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+            {new Date(order.created_at).toLocaleDateString()}
+          </Typography.Text>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <Tag color={
+            isCancelled ? 'red' :
+            progress === 'delivered' ? 'green' :
+            progress === 'shipped' ? 'blue' :
+            progress === 'processing' ? 'cyan' :
+            progress === 'partially_paid' ? 'gold' :
+            progress === 'awaiting_payment' ? 'orange' : 'blue'
+          }>
+            {progress.replace(/_/g, ' ')}
+          </Tag>
+          <br />
+          <Typography.Text strong style={{ color: '#1B4332' }}>${Number(order.total).toFixed(2)}</Typography.Text>
+          {paymentType === 'deposit_50' && progress === 'partially_paid' && (
+            <Typography.Text type="warning" style={{ fontSize: 12, display: 'block' }}>
+              Balance: ${balance.toFixed(2)}
+            </Typography.Text>
+          )}
+        </div>
+      </div>
+
+      {expanded && (
+        <div>
+          {/* Progress tracker */}
+          {!isCancelled ? (
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, padding: '0 4px' }}>
+              {PROGRESS_STEPS.map((step, i) => (
+                <div key={step.key} style={{ flex: 1, textAlign: 'center', position: 'relative' }}>
+                  <div style={{
+                    width: 24, height: 24, borderRadius: '50%', margin: '0 auto',
+                    background: i <= currentStepIndex ? '#2D6A4F' : '#E8EDE9',
+                    color: i <= currentStepIndex ? '#fff' : '#9AA8A1',
+                    fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontWeight: 600,
+                  }}>{i + 1}</div>
+                  <Typography.Text style={{ fontSize: 11, color: i <= currentStepIndex ? '#1B4332' : '#9AA8A1' }}>
+                    {step.label}
+                  </Typography.Text>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: 12, background: '#FFF1F0', borderRadius: 8, marginBottom: 12 }}>
+              <Typography.Text type="danger">This order was cancelled.</Typography.Text>
+            </div>
+          )}
+
+          <List
+            size="small"
+            dataSource={order.order_items || []}
+            renderItem={(item) => (
+              <List.Item>
+                <Typography.Text>{item.product_name} × {item.quantity}</Typography.Text>
+                <Typography.Text>${Number(item.line_total).toFixed(2)}</Typography.Text>
+              </List.Item>
+            )}
+          />
+
+          {order.address_snapshot && (
+            <div style={{ marginTop: 12, padding: 12, background: '#F4F7F5', borderRadius: 8 }}>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>Shipping to: </Typography.Text>
+              <Typography.Text style={{ fontSize: 13 }}>
+                {order.address_snapshot.full_name}, {order.address_snapshot.line1}, {order.address_snapshot.city}, {order.address_snapshot.state}
+              </Typography.Text>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
+            {needsPayment && (
+              <Button type="primary" loading={actionLoading} onClick={(e) => { e.stopPropagation(); handleCompletePayment(); }}>
+                {paymentType === 'deposit_50' ? `Pay Balance ${balance.toFixed(2)}` : `Pay ${Number(order.total).toFixed(2)}`}
+              </Button>
+            )}
+            {canCancel && (
+              <Button danger loading={actionLoading} onClick={(e) => { e.stopPropagation(); handleCancel(); }}>
+                Cancel Order
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }

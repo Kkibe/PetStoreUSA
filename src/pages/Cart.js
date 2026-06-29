@@ -1,5 +1,5 @@
-import { DeleteOutlined, ShoppingOutlined, ArrowLeftOutlined, CreditCardOutlined } from '@ant-design/icons';
-import { Button, Col, Empty, InputNumber, Row, Spin, Typography, message } from 'antd';
+import { DeleteOutlined, ShoppingOutlined, ArrowLeftOutlined, CreditCardOutlined, PlusOutlined, EnvironmentOutlined, EditOutlined } from '@ant-design/icons';
+import { Button, Col, Divider, Empty, Form, Input, InputNumber, Modal, Radio, Row, Spin, Typography, message } from 'antd';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
@@ -9,26 +9,65 @@ import { usePayment, generateTxRef } from '../lib/payment';
 
 export default function Cart() {
   const navigate = useNavigate();
-  const { cartItems, loading, cartTotal, updateQuantity, removeFromCart, clearCart, fetchCart } = useCart();
+  const { cartItems, loading, cartTotal, updateQuantity, removeFromCart, clearCart } = useCart();
   const { session } = useAuth();
   const [addresses, setAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [placing, setPlacing] = useState(false);
   const { pay } = usePayment();
+  const [addrModalOpen, setAddrModalOpen] = useState(false);
+  const [editingAddr, setEditingAddr] = useState(null);
+  const [addrForm] = Form.useForm();
+  const [paymentType, setPaymentType] = useState('full');
 
-  useEffect(() => {
+  const fetchAddresses = async () => {
     if (!session?.user) return;
-    supabase.from('addresses').select('*').eq('user_id', session.user.id).order('is_default', { ascending: false })
-      .then(({ data }) => {
-        setAddresses(data || []);
-        setSelectedAddress(data?.find((a) => a.is_default)?.id || data?.[0]?.id || null);
-      });
-  }, [session?.user]);
+    const { data } = await supabase.from('addresses').select('*').eq('user_id', session.user.id).order('is_default', { ascending: false });
+    setAddresses(data || []);
+    setSelectedAddress(data?.find((a) => a.is_default)?.id || data?.[0]?.id || null);
+  };
+
+  useEffect(() => { fetchAddresses(); }, [session?.user]);
+
+  const amountDue = paymentType === 'deposit_50' ? cartTotal * 0.5 : cartTotal;
+
+  const openAddAddr = () => {
+    setEditingAddr(null);
+    addrForm.resetFields();
+    setAddrModalOpen(true);
+  };
+
+  const openEditAddr = (addr) => {
+    setEditingAddr(addr);
+    addrForm.setFieldsValue(addr);
+    setAddrModalOpen(true);
+  };
+
+  const saveAddr = async (values) => {
+    try {
+      if (editingAddr) {
+        const { error } = await supabase.from('addresses').update(values).eq('id', editingAddr.id);
+        if (error) throw error;
+        message.success('Address updated.');
+      } else {
+        const { data, error } = await supabase.from('addresses').insert(values).select().maybeSingle();
+        if (error) throw error;
+        if (values.is_default && data) {
+          await supabase.from('addresses').update({ is_default: false }).eq('user_id', session.user.id).neq('id', data.id);
+        }
+        message.success('Address added.');
+      }
+      setAddrModalOpen(false);
+      await fetchAddresses();
+    } catch (err) {
+      message.error(err.message);
+    }
+  };
 
   const handleCheckout = async () => {
     if (!session) { message.info('Please sign in to checkout.'); return; }
     if (cartItems.length === 0) { message.warning('Your cart is empty.'); return; }
-    if (!selectedAddress) { message.warning('Please add a shipping address in your profile first.'); return; }
+    if (!selectedAddress) { message.warning('Please add a billing/shipping address.'); return; }
     setPlacing(true);
     try {
       const addr = addresses.find((a) => a.id === selectedAddress);
@@ -36,8 +75,10 @@ export default function Cart() {
       const { data: order, error: orderErr } = await supabase.from('orders').insert({
         total: cartTotal,
         status: 'awaiting_payment',
+        progress: 'awaiting_payment',
+        payment_type: paymentType,
         address_snapshot: addr,
-        payment: { tx_ref: txRef, status: 'initiated' },
+        payment: { tx_ref: txRef, status: 'initiated', amount_due: amountDue },
       }).select().maybeSingle();
       if (orderErr) throw orderErr;
       const lineItems = cartItems.map((c) => ({
@@ -52,7 +93,7 @@ export default function Cart() {
       if (itemsErr) throw itemsErr;
 
       pay({
-        amount: cartTotal,
+        amount: amountDue,
         customer: {
           email: session.user.email,
           name: addr.full_name,
@@ -61,15 +102,19 @@ export default function Cart() {
         txRef,
         onVerified: async (result) => {
           const paid = result.status === 'verified';
+          const newProgress = paid
+            ? (paymentType === 'deposit_50' ? 'partially_paid' : 'processing')
+            : 'awaiting_payment';
           await supabase.from('orders').update({
             status: paid ? 'paid' : 'payment_failed',
-            payment: result,
+            progress: newProgress,
+            payment: { ...result, payment_type: paymentType, amount_due: amountDue, order_total: cartTotal },
           }).eq('id', order.id);
           await supabase.from('notifications').insert({
             title: paid ? 'Payment Successful' : 'Payment Issue',
             body: paid
-              ? `Your order #${order.id.slice(0, 8)} of ${cartTotal.toFixed(2)} was paid and verified (ref: ${result.tx_ref}).`
-              : `Payment for order #${order.id.slice(0, 8)} could not be verified. Please contact support.`,
+              ? `Your order #${order.id.slice(0, 8)} payment of $${amountDue.toFixed(2)} (${paymentType === 'deposit_50' ? '50% deposit' : 'full'}) was verified (ref: ${result.tx_ref}).`
+              : `Payment for order #${order.id.slice(0, 8)} could not be verified. Please try again.`,
             type: paid ? 'order' : 'alert',
           });
           if (paid) {
@@ -77,13 +122,15 @@ export default function Cart() {
             message.success('Payment verified! Order placed successfully.');
             navigate('/profile?tab=orders');
           } else {
-            message.error('Payment could not be verified. Please try again or contact support.');
+            message.error('Payment could not be verified. You can retry from your orders.');
+            navigate('/profile?tab=orders');
           }
           setPlacing(false);
         },
         onClose: () => {
           setPlacing(false);
-          message.info('Payment cancelled.');
+          message.info('Payment cancelled. Order saved — you can complete payment from your orders.');
+          navigate('/profile?tab=orders');
         },
       });
     } catch (err) {
@@ -154,17 +201,57 @@ export default function Cart() {
               <Typography.Text strong style={{ fontSize: 18 }}>Total</Typography.Text>
               <Typography.Text strong style={{ fontSize: 18, color: '#1B4332' }}>${cartTotal.toFixed(2)}</Typography.Text>
             </div>
-            {addresses.length > 0 ? (
-              <Typography.Paragraph type="secondary" style={{ fontSize: 13, marginBottom: 16 }}>
-                Shipping to: {addresses.find((a) => a.id === selectedAddress)?.line1}, {addresses.find((a) => a.id === selectedAddress)?.city}
+
+            {/* Payment option */}
+            <Divider style={{ margin: '16px 0' }} />
+            <Typography.Text strong>Payment Option</Typography.Text>
+            <Radio.Group value={paymentType} onChange={(e) => setPaymentType(e.target.value)} style={{ display: 'flex', flexDirection: 'column', marginTop: 10, gap: 8 }}>
+              <Radio value="full">
+                <Typography.Text>Full amount: </Typography.Text>
+                <Typography.Text strong style={{ color: '#1B4332' }}>${cartTotal.toFixed(2)}</Typography.Text>
+              </Radio>
+              <Radio value="deposit_50">
+                <Typography.Text>50% deposit now: </Typography.Text>
+                <Typography.Text strong style={{ color: '#1B4332' }}>${(cartTotal * 0.5).toFixed(2)}</Typography.Text>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}> (balance on delivery)</Typography.Text>
+              </Radio>
+            </Radio.Group>
+            <div style={{ background: '#F4F7F5', borderRadius: 8, padding: '8px 12px', marginTop: 12, display: 'flex', justifyContent: 'space-between' }}>
+              <Typography.Text>Amount due now</Typography.Text>
+              <Typography.Text strong style={{ color: '#2D6A4F', fontSize: 16 }}>${amountDue.toFixed(2)}</Typography.Text>
+            </div>
+
+            {/* Billing address */}
+            <Divider style={{ margin: '16px 0' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Typography.Text strong><EnvironmentOutlined /> Billing Address</Typography.Text>
+              <Button type="link" size="small" icon={<PlusOutlined />} onClick={openAddAddr}>Add</Button>
+            </div>
+            {addresses.length === 0 ? (
+              <Typography.Paragraph type="warning" style={{ fontSize: 13 }}>
+                No address yet. Add one to continue.
               </Typography.Paragraph>
             ) : (
-              <Typography.Paragraph type="warning" style={{ fontSize: 13, marginBottom: 16 }}>
-                No shipping address found. Add one in your profile.
-              </Typography.Paragraph>
+              <Radio.Group value={selectedAddress} onChange={(e) => setSelectedAddress(e.target.value)} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {addresses.map((a) => (
+                  <div key={a.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                    <Radio value={a.id} style={{ flex: 1, marginTop: 2 }}>
+                      <div style={{ fontSize: 13 }}>
+                        <Typography.Text strong>{a.full_name}</Typography.Text>
+                        {a.is_default && <Typography.Text type="success" style={{ fontSize: 11, marginLeft: 6 }}>Default</Typography.Text>}
+                        }
+                        <br />
+                        <Typography.Text type="secondary">{a.line1}, {a.city}, {a.state} {a.postal_code}</Typography.Text>
+                      </div>
+                    </Radio>
+                    <Button type="text" size="small" icon={<EditOutlined />} onClick={() => openEditAddr(a)} />
+                  </div>
+                ))}
+              </Radio.Group>
             )}
-            <Button type="primary" size="large" block loading={placing} onClick={handleCheckout} disabled={addresses.length === 0} icon={<CreditCardOutlined />}>
-              Pay with Flutterwave
+
+            <Button type="primary" size="large" block loading={placing} onClick={handleCheckout} disabled={addresses.length === 0} icon={<CreditCardOutlined />} style={{ marginTop: 20 }}>
+              Pay ${amountDue.toFixed(2)} with Flutterwave
             </Button>
             <Typography.Paragraph type="secondary" style={{ fontSize: 12, textAlign: 'center', marginTop: 12 }}>
               Secure payment via Flutterwave · Card, Bank Transfer, USSD
@@ -172,6 +259,45 @@ export default function Cart() {
           </div>
         </Col>
       </Row>
+
+      <Modal
+        open={addrModalOpen}
+        onCancel={() => setAddrModalOpen(false)}
+        title={editingAddr ? 'Edit Address' : 'Add Billing Address'}
+        footer={null}
+        width={480}
+      >
+        <Form form={addrForm} layout="vertical" onFinish={saveAddr} requiredMark={false}>
+          <Form.Item label="Full Name" name="full_name" rules={[{ required: true, message: 'Required' }]}>
+            <Input placeholder="Jane Doe" />
+          </Form.Item>
+          <Form.Item label="Address Line 1" name="line1" rules={[{ required: true, message: 'Required' }]}>
+            <Input placeholder="123 Main St" />
+          </Form.Item>
+          <Form.Item label="Address Line 2" name="line2">
+            <Input placeholder="Apt, suite (optional)" />
+          </Form.Item>
+          <Form.Item label="City" name="city" rules={[{ required: true, message: 'Required' }]}>
+            <Input placeholder="Austin" />
+          </Form.Item>
+          <Form.Item label="State" name="state" rules={[{ required: true, message: 'Required' }]}>
+            <Input placeholder="TX" />
+          </Form.Item>
+          <Form.Item label="Postal Code" name="postal_code" rules={[{ required: true, message: 'Required' }]}>
+            <Input placeholder="78701" />
+          </Form.Item>
+          <Form.Item label="Country" name="country" rules={[{ required: true, message: 'Required' }]}>
+            <Input placeholder="United States" />
+          </Form.Item>
+          <Form.Item name="is_default" valuePropName="checked">
+            <Radio.Group>
+              <Radio value={true}>Set as default</Radio>
+              <Radio value={false}>Not default</Radio>
+            </Radio.Group>
+          </Form.Item>
+          <Button type="primary" htmlType="submit" block size="large">Save Address</Button>
+        </Form>
+      </Modal>
     </div>
   );
 }

@@ -1,10 +1,11 @@
-import { ShoppingCartOutlined, SafetyCertificateOutlined, CarryOutOutlined, HeartOutlined } from '@ant-design/icons';
+import { ShoppingCartOutlined, SafetyCertificateOutlined, CarryOutOutlined, HeartOutlined, HeartFilled } from '@ant-design/icons';
 import { Button, Col, InputNumber, Rate, Row, Spin, Tag, Typography, message } from 'antd';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { useFavorites } from '../context/FavoritesContext';
 import ProductCard from '../components/ProductCard';
 
 export default function ProductDetail() {
@@ -12,6 +13,7 @@ export default function ProductDetail() {
   const navigate = useNavigate();
   const { addToCart } = useCart();
   const { session } = useAuth();
+  const { isFavorite, toggleFavorite } = useFavorites();
   const [product, setProduct] = useState(null);
   const [related, setRelated] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -122,6 +124,16 @@ export default function ProductDetail() {
               Add to Cart
             </Button>
             <Button size="large" onClick={() => { handleAdd(); navigate('/cart'); }}>Buy Now</Button>
+            <Button
+              size="large"
+              icon={isFavorite(product.id) ? <HeartFilled style={{ color: '#E63946' }} /> : <HeartOutlined />}
+              onClick={async () => {
+                if (!session) { message.info('Please sign in to save pets.'); return; }
+                try { await toggleFavorite(product.id); } catch (e) { message.error(e.message); }
+              }}
+            >
+              {isFavorite(product.id) ? 'Saved' : 'Save'}
+            </Button>
           </div>
           <Row gutter={[16, 16]}>
             <Col span={8}><div style={{ textAlign: 'center' }}><SafetyCertificateOutlined style={{ fontSize: 24, color: '#2D6A4F' }} /><p style={{ fontSize: 13, marginTop: 6, color: '#5A6B62' }}>Health Guaranteed</p></div></Col>

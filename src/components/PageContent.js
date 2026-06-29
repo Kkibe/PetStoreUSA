@@ -4,6 +4,7 @@ import Products from '../pages/Products';
 import ProductDetail from '../pages/ProductDetail';
 import Cart from '../pages/Cart';
 import Profile from '../pages/Profile';
+import Admin from '../pages/Admin';
 
 export default function PageContent() {
   return (
@@ -15,6 +16,7 @@ export default function PageContent() {
         <Route path="/product/:slug" element={<ProductDetail />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/admin" element={<Admin />} />
       </Routes>
     </div>
   );

@@ -6,6 +6,7 @@ import AppHeader from './components/Header';
 import PageContent from './components/PageContent';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
+import { FavoritesProvider } from './context/FavoritesContext';
 import { themeConfig } from './theme';
 
 function App() {
@@ -13,6 +14,7 @@ function App() {
     <ConfigProvider theme={themeConfig}>
       <AuthProvider>
         <CartProvider>
+          <FavoritesProvider>
           <div className="App">
             <BrowserRouter>
               <AppHeader />
@@ -20,6 +22,7 @@ function App() {
               <AppFooter />
             </BrowserRouter>
           </div>
+          </FavoritesProvider>
         </CartProvider>
       </AuthProvider>
     </ConfigProvider>

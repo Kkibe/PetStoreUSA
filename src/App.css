@@ -1,89 +1,526 @@
-*, *::before, *::after{
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap');
+
+*, *::before, *::after {
   margin: 0;
   padding: 0;
+  box-sizing: border-box;
 }
 
-.App{
+html, body, #root {
+  min-height: 100vh;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #FAFBF9;
+  color: #1A2E25;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.App {
   display: flex;
   flex-direction: column;
-  width: 100%;
   min-height: 100vh;
-  margin-top: 60px;
-  position: relative;
+  background: #FAFBF9;
 }
-.appHeader{
-  height: 60px;
+
+/* ---------- Header ---------- */
+.appHeader {
+  height: 72px;
   width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 1px 2px 2px #00000033;
+  padding: 0 40px;
   position: fixed;
   top: 0;
-  z-index: 10;
-  background: white;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(45, 106, 79, 0.08);
+  transition: all 0.3s ease;
 }
-.soppingCartIcon{
-  font-size: 30px;
-  margin-right: 16px;
-  cursor: pointer;
+
+.appHeader.scrolled {
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 20px rgba(45, 106, 79, 0.06);
 }
-.productsContainer{
-  padding: 8px;
-}
-.appMenu{
-  border: none;
-}
-.pageContent{
+
+.brand {
   display: flex;
-  flex: 1;
-  overflow-y: auto;
-  margin-top: 2px;
-}
-.appFooter{
-  height: 60px;
-  background-color: rgb(54, 54, 54);
-  display: flex;
-  justify-content: space-evenly;
   align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-family: 'Playfair Display', serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: #1B4332;
+  letter-spacing: -0.5px;
 }
 
-.appFooter *{
-  color: white;
-}
-.itemCard, .itemCardBadge{
-  margin: 8px;
-}
-.itemCardImage{
-  height: 150px !important;
-  object-fit: scale-down;
+.brand .brandIcon {
+  font-size: 28px;
+  color: #2D6A4F;
 }
 
-.carousel-item{
+.appMenu {
+  flex: 1;
+  justify-content: center;
+  background: transparent !important;
+  border: none !important;
+  font-size: 15px;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ---------- Page content ---------- */
+.pageContent {
+  flex: 1;
+  padding-top: 72px;
+  min-height: calc(100vh - 72px - 200px);
+}
+
+/* ---------- Hero ---------- */
+.hero {
+  position: relative;
+  min-height: 88vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #364d79;
-  position: relative;
-  border: 1px solid green;
-}
-
-.carousel-item .image{
-  height: 220px;
-  width: 220px;
-  object-fit: fill;
-  object-position: center;
-  background: #fff;
-  padding: 5px;
-}
-
-.carousel-item p{
-  color: #fff;
   text-align: center;
-  flex: 1;
-  position: absolute;
-  width: 100px;
-  height: 100px;
-  background: #bcceee;
-  border-radius: 50%;
+  overflow: hidden;
+  background: linear-gradient(135deg, #1B4332 0%, #2D6A4F 50%, #40916C 100%);
+  color: #fff;
 }
+
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url('https://images.pexels.com/photos/2255359/pexels-photo-2255359.jpeg?auto=compress&cs=tinysrgb&w=1600') center center / cover;
+  opacity: 0.18;
+}
+
+.heroContent {
+  position: relative;
+  z-index: 2;
+  max-width: 760px;
+  padding: 0 24px;
+  animation: fadeUp 0.9s ease;
+}
+
+.heroContent h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(40px, 6vw, 72px);
+  font-weight: 700;
+  line-height: 1.1;
+  margin-bottom: 20px;
+  letter-spacing: -1px;
+}
+
+.heroContent p {
+  font-size: clamp(16px, 2vw, 20px);
+  line-height: 1.6;
+  margin-bottom: 36px;
+  opacity: 0.92;
+  font-weight: 300;
+}
+
+.heroActions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ---------- Sections ---------- */
+.section {
+  padding: 80px 40px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.sectionNarrow {
+  max-width: 1100px;
+}
+
+.sectionTitle {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(28px, 4vw, 42px);
+  font-weight: 700;
+  color: #1B4332;
+  text-align: center;
+  margin-bottom: 12px;
+  letter-spacing: -0.5px;
+}
+
+.sectionSubtitle {
+  text-align: center;
+  color: #5A6B62;
+  font-size: 17px;
+  margin-bottom: 48px;
+  font-weight: 300;
+}
+
+.eyebrow {
+  text-align: center;
+  color: #2D6A4F;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+/* ---------- Category cards ---------- */
+.categoryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 20px;
+}
+
+.categoryCard {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  aspect-ratio: 1;
+  background: #E8EDE9;
+  transition: transform 0.35s ease, box-shadow 0.35s ease;
+}
+
+.categoryCard:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 16px 40px rgba(45, 106, 79, 0.18);
+}
+
+.categoryCard img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.categoryCard:hover img {
+  transform: scale(1.08);
+}
+
+.categoryCard .overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(27, 67, 50, 0.78) 0%, rgba(27, 67, 50, 0.1) 60%, transparent 100%);
+  display: flex;
+  align-items: flex-end;
+  padding: 20px;
+}
+
+.categoryCard .overlay h3 {
+  color: #fff;
+  font-size: 20px;
+  font-weight: 600;
+  font-family: 'Playfair Display', serif;
+}
+
+/* ---------- Product card ---------- */
+.productCard {
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #E8EDE9;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.productCard:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 16px 40px rgba(45, 106, 79, 0.12);
+  border-color: rgba(45, 106, 79, 0.2);
+}
+
+.productCardImage {
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+  background: #F4F7F5;
+  display: block;
+}
+
+.productCardBody {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 8px;
+}
+
+.productCardTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1A2E25;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.productCardDesc {
+  font-size: 13px;
+  color: #5A6B62;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  flex: 1;
+}
+
+.productCardPrice {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.productCardPrice .price {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1B4332;
+}
+
+.productCardPrice .comparePrice {
+  font-size: 14px;
+  color: #9AA8A1;
+  text-decoration: line-through;
+}
+
+.discountBadge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: #2D6A4F;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  z-index: 2;
+}
+
+.featuredBadge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: #D4A373;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  z-index: 2;
+  letter-spacing: 0.5px;
+}
+
+/* ---------- Footer ---------- */
+.appFooter {
+  background: #1B4332;
+  color: #fff;
+  padding: 56px 40px 24px;
+  margin-top: auto;
+}
+
+.footerGrid {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 40px;
+}
+
+.footerBrand {
+  font-family: 'Playfair Display', serif;
+  font-size: 26px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.footerCol h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #B7E4C7;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.footerCol a, .footerCol p {
+  display: block;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 14px;
+  margin-bottom: 10px;
+  text-decoration: none;
+  transition: color 0.2s ease;
+  cursor: pointer;
+}
+
+.footerCol a:hover { color: #fff; }
+
+.footerBottom {
+  max-width: 1280px;
+  margin: 40px auto 0;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* ---------- Auth modal ---------- */
+.authModal .ant-modal-body {
+  padding: 32px 28px 8px;
+}
+
+.authModal .ant-tabs-tab {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+/* ---------- Profile ---------- */
+.profileLayout {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 40px;
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 32px;
+}
+
+.profileSider {
+  background: #fff;
+  border-radius: 14px;
+  padding: 24px;
+  border: 1px solid #E8EDE9;
+  height: fit-content;
+}
+
+.profileAvatar {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.profileAvatar .ant-avatar {
+  background: #2D6A4F;
+  width: 80px !important;
+  height: 80px !important;
+  font-size: 32px !important;
+}
+
+.profileMenu {
+  border: none !important;
+}
+
+.profileContent {
+  background: #fff;
+  border-radius: 14px;
+  padding: 32px;
+  border: 1px solid #E8EDE9;
+  min-height: 400px;
+}
+
+/* ---------- Stats / features ---------- */
+.featureStrip {
+  background: #fff;
+  border-top: 1px solid #E8EDE9;
+  border-bottom: 1px solid #E8EDE9;
+  padding: 40px;
+}
+
+.featureStripInner {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  text-align: center;
+}
+
+.featureItem .featureIcon {
+  font-size: 32px;
+  color: #2D6A4F;
+  margin-bottom: 12px;
+}
+
+.featureItem h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1A2E25;
+  margin-bottom: 6px;
+}
+
+.featureItem p {
+  font-size: 13px;
+  color: #5A6B62;
+  line-height: 1.5;
+}
+
+/* ---------- Testimonials ---------- */
+.testimonialCard {
+  background: #fff;
+  border-radius: 14px;
+  padding: 28px;
+  border: 1px solid #E8EDE9;
+  height: 100%;
+}
+
+.testimonialCard .quote {
+  font-size: 15px;
+  line-height: 1.7;
+  color: #1A2E25;
+  margin-bottom: 20px;
+  font-style: italic;
+}
+
+.testimonialCard .author {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ---------- Animations ---------- */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fadeIn { animation: fadeUp 0.6s ease; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .appHeader { padding: 0 16px; }
+  .section { padding: 56px 20px; }
+  .footerGrid { grid-template-columns: 1fr 1fr; }
+  .featureStripInner { grid-template-columns: repeat(2, 1fr); }
+  .profileLayout { grid-template-columns: 1fr; padding: 20px; }
+}
+
+@media (max-width: 600px) {
+  .footerGrid { grid-template-columns: 1fr; }
+  .featureStripInner { grid-template-columns: 1fr; }
+  .heroContent h1 { font-size: 36px; }
+  .appMenu { display: none; }
+}
+
+/* ---------- Utility ---------- */
+.textCenter { text-align: center; }
+.mt24 { margin-top: 24px; }
+.mb24 { margin-bottom: 24px; }

@@ -103,7 +103,7 @@ body {
   content: '';
   position: absolute;
   inset: 0;
-  background: url('https://images.pexels.com/photos/2255359/pexels-photo-2255359.jpeg?auto=compress&cs=tinysrgb&w=1600') center center / cover;
+  background: url('./assets/p1.png') center center / cover;
   opacity: 0.18;
 }
 

@@ -108,7 +108,6 @@ export default function ProductDetail() {
               </Typography.Text>
             )}
             {discount > 0 && <Tag color="error">{discount}% OFF</Tag>}
-            }
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 28 }}>
             <Typography.Text>Quantity:</Typography.Text>

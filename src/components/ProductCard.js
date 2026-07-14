@@ -50,7 +50,9 @@ export default function ProductCard({ product }) {
     <div className="productCard" onClick={() => navigate(`/product/${product.slug}`)}>
       <div style={{ position: 'relative' }}>
         {discount > 0 && <div className="discountBadge">{discount}% Off</div>}
+        }
         {product.featured && <div className="featuredBadge">Featured</div>}
+        }
         <img className="productCardImage" src={product.image_url} alt={product.name} />
         <Button
           shape="circle"
